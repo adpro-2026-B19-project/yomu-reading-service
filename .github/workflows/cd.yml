@@ -42,27 +42,21 @@ jobs:
           push: true
           tags: ghcr.io/${{ steps.slug.outputs.repo_name }}:latest
 
-      - name: Setup SSH Agent
-        uses: webfactory/ssh-agent@v0.9.0
-        with:
-          ssh-private-key: ${{ secrets.EC2_SSH_KEY }}
-
       - name: Copy docker-compose to EC2
         uses: appleboy/scp-action@v0.1.7
         with:
           host: ${{ secrets.EC2_HOST }}
           username: ${{ secrets.EC2_USER }}
-          key_path: ${{ env.SSH_AUTH_SOCK }}
+          key: ${{ secrets.EC2_SSH_KEY }}
           source: "docker-compose.yml"
           target: "~/yomu-reading-service"
-          use_insecure_cipher: true
 
       - name: Deploy to EC2
         uses: appleboy/ssh-action@v1.0.3
         with:
           host: ${{ secrets.EC2_HOST }}
           username: ${{ secrets.EC2_USER }}
-          key_path: ${{ env.SSH_AUTH_SOCK }}
+          key: ${{ secrets.EC2_SSH_KEY }}
           script: |
             cd ~/yomu-reading-service
             echo ${{ secrets.GITHUB_TOKEN }} | docker login ghcr.io -u ${{ github.actor }} --password-stdin
