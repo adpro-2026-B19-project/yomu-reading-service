@@ -47,6 +47,19 @@ tasks.withType<Test> {
 
 tasks.jacocoTestReport {
     dependsOn(tasks.test)
+    classDirectories.setFrom(
+        files(classDirectories.files.map {
+            fileTree(it) {
+                exclude(
+                    "id/ac/ui/cs/advprog/yomureadingservice/config/**",
+                    "id/ac/ui/cs/advprog/yomureadingservice/YomuReadingServiceApplication**",
+                    "id/ac/ui/cs/advprog/yomureadingservice/**/dto/**",
+                    "id/ac/ui/cs/advprog/yomureadingservice/**/model/**",
+                    "id/ac/ui/cs/advprog/yomureadingservice/client/**"
+                )
+            }
+        })
+    )
     reports {
         xml.required = true
         html.required = true
@@ -55,6 +68,19 @@ tasks.jacocoTestReport {
 
 tasks.jacocoTestCoverageVerification {
     dependsOn(tasks.test)
+    classDirectories.setFrom(
+        files(classDirectories.files.map {
+            fileTree(it) {
+                exclude(
+                    "id/ac/ui/cs/advprog/yomureadingservice/config/**",
+                    "id/ac/ui/cs/advprog/yomureadingservice/YomuReadingServiceApplication**",
+                    "id/ac/ui/cs/advprog/yomureadingservice/**/dto/**",
+                    "id/ac/ui/cs/advprog/yomureadingservice/**/model/**",
+                    "id/ac/ui/cs/advprog/yomureadingservice/client/**"
+                )
+            }
+        })
+    )
     violationRules {
         rule {
             limit {

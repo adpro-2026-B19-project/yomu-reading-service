@@ -72,6 +72,15 @@ class TextApiControllerTest {
     }
 
     @Test
+    void getTexts_returns404_whenNotFound() throws Exception {
+        when(readingServiceClient.getAllTexts(anyInt(), anyInt()))
+                .thenThrow(new ReadingServiceNotFoundException("Not found"));
+
+        mockMvc.perform(get("/api/texts"))
+                .andExpect(status().isNotFound());
+    }
+
+    @Test
     void getTextDetail_returns200_whenFound() throws Exception {
         Map<String, Object> response = Map.of(
                 "text", Map.of("id", 1, "title", "Title"),
@@ -137,6 +146,29 @@ class TextApiControllerTest {
     }
 
     @Test
+    void startQuiz_returns400_whenAlreadyAttempted() throws Exception {
+        when(readingServiceClient.getQuizByTextId(1L))
+                .thenThrow(new ReadingServiceException("already_attempted"));
+
+        Authentication auth = new UsernamePasswordAuthenticationToken("test-user", null, List.of());
+
+        mockMvc.perform(get("/api/texts/1/quiz").principal(auth))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.error").value("already_attempted"));
+    }
+
+    @Test
+    void startQuiz_returns503_whenServiceUnavailable() throws Exception {
+        when(readingServiceClient.getQuizByTextId(1L))
+                .thenThrow(new ReadingServiceException("Error"));
+
+        Authentication auth = new UsernamePasswordAuthenticationToken("test-user", null, List.of());
+
+        mockMvc.perform(get("/api/texts/1/quiz").principal(auth))
+                .andExpect(status().isServiceUnavailable());
+    }
+
+    @Test
     void submitQuiz_returns401_whenUnauthenticated() throws Exception {
         mockMvc.perform(post("/api/texts/1/quiz/submit")
                         .contentType(MediaType.APPLICATION_JSON)
@@ -145,7 +177,7 @@ class TextApiControllerTest {
     }
 
     @Test
-    void submitQuiz_returns200_whenSuccessful() throws Exception {
+    void submitQuiz_returns200_whenSuccessful1() throws Exception {
         QuizAttemptDto attempt = new QuizAttemptDto(1L, 1L, "test-user", 80.0, 0.8, null);
         when(readingServiceClient.submitQuiz(eq(1L), any())).thenReturn(attempt);
 
@@ -171,5 +203,62 @@ class TextApiControllerTest {
                         .content("{}")
                         .principal(auth))
                 .andExpect(status().isNotFound());
+    }
+
+    @Test
+    void submitQuiz_returns400_whenServiceException() throws Exception {
+        when(readingServiceClient.submitQuiz(eq(1L), any()))
+                .thenThrow(new ReadingServiceException("Error"));
+
+        Authentication auth = new UsernamePasswordAuthenticationToken("test-user", null, List.of());
+
+        mockMvc.perform(post("/api/texts/1/quiz/submit")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{}")
+                        .principal(auth))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.error").value("Error"));
+    }
+
+    @Test
+    void getHistory_returns401_whenUnauthenticated() throws Exception {
+        mockMvc.perform(get("/api/texts/history"))
+                .andExpect(status().isUnauthorized());
+    }
+
+    @Test
+    void getHistory_returns200_whenSuccessful() throws Exception {
+        id.ac.ui.cs.advprog.yomureadingservice.reading.dto.UserReadingStatResponse stats = 
+                new id.ac.ui.cs.advprog.yomureadingservice.reading.dto.UserReadingStatResponse(2, 0.8, 160.0);
+        when(readingServiceClient.getReadingStats("test-user")).thenReturn(stats);
+
+        Authentication auth = new UsernamePasswordAuthenticationToken("test-user", null, List.of());
+
+        mockMvc.perform(get("/api/texts/history").principal(auth))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.totalTextsCompleted").value(2));
+    }
+
+    @Test
+    void getHistory_returns200_whenNotFound() throws Exception {
+        when(readingServiceClient.getReadingStats("test-user"))
+                .thenThrow(new ReadingServiceNotFoundException("not found"));
+
+        Authentication auth = new UsernamePasswordAuthenticationToken("test-user", null, List.of());
+
+        mockMvc.perform(get("/api/texts/history").principal(auth))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.totalTextsCompleted").value(0));
+    }
+
+    @Test
+    void getHistory_returns503_whenServiceUnavailable() throws Exception {
+        when(readingServiceClient.getReadingStats("test-user"))
+                .thenThrow(new ReadingServiceException("error"));
+
+        Authentication auth = new UsernamePasswordAuthenticationToken("test-user", null, List.of());
+
+        mockMvc.perform(get("/api/texts/history").principal(auth))
+                .andExpect(status().isServiceUnavailable());
     }
 }
