@@ -11,7 +11,7 @@ services:
       - postgres_data:/var/lib/postgresql/data
 
   app:
-    image: ghcr.io/${GITHUB_REPOSITORY:-adpro-2026-B19-project/yomu-reading-service}:latest
+    image: ghcr.io/${GITHUB_REPOSITORY:-adpro-2026-b19-project/yomu-reading-service}:latest
     ports:
       - "8081:8081"
     environment:
