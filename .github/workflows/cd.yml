@@ -42,38 +42,7 @@ jobs:
           push: true
           tags: ghcr.io/${{ steps.slug.outputs.repo_name }}:latest
 
-      - name: Copy docker-compose to EC2
-        uses: appleboy/scp-action@v0.1.7
-        with:
-          host: ${{ secrets.EC2_HOST }}
-          username: ${{ secrets.EC2_USER }}
-          key: ${{ secrets.EC2_SSH_KEY }}
-          source: "docker-compose.yml"
-          target: "~/"
-
-      - name: Deploy to EC2
-        uses: appleboy/ssh-action@v1.0.3
-        with:
-          host: ${{ secrets.EC2_HOST }}
-          username: ${{ secrets.EC2_USER }}
-          key: ${{ secrets.EC2_SSH_KEY }}
-          script: |
-            # Buat .env file dari secrets
-            cat > ~/.env << 'EOF'
-            POSTGRES_USER=${{ secrets.POSTGRES_USER }}
-            POSTGRES_PASSWORD=${{ secrets.POSTGRES_PASSWORD }}
-            POSTGRES_DB=${{ secrets.POSTGRES_DB }}
-            SPRING_DATASOURCE_URL=${{ secrets.SPRING_DATASOURCE_URL }}
-            SPRING_DATASOURCE_USERNAME=${{ secrets.SPRING_DATASOURCE_USERNAME }}
-            SPRING_DATASOURCE_PASSWORD=${{ secrets.SPRING_DATASOURCE_PASSWORD }}
-            SPRING_JPA_HIBERNATE_DDL_AUTO=update
-            SPRING_PROFILES_ACTIVE=docker
-            SPRING_SECURITY_OAUTH2_CLIENT_REGISTRATION_GOOGLE_CLIENT_ID=${{ secrets.GOOGLE_CLIENT_ID }}
-            SPRING_SECURITY_OAUTH2_CLIENT_REGISTRATION_GOOGLE_CLIENT_SECRET=${{ secrets.GOOGLE_CLIENT_SECRET }}
-            GITHUB_REPOSITORY=${{ github.repository }}
-            EOF
-
-            # Login ke GHCR dan deploy
-            echo ${{ secrets.GITHUB_TOKEN }} | docker login ghcr.io -u ${{ github.actor }} --password-stdin
-            docker compose pull
-            docker compose up -d --remove-orphans
+      - name: Deploy to Railway
+        run: npx @railway/cli@latest up --service yomu-reading-service --detach
+        env:
+          RAILWAY_TOKEN: ${{ secrets.RAILWAY_TOKEN }}
