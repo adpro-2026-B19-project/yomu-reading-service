@@ -31,12 +31,16 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
+      - name: Lowercase Repository Name
+        id: slug
+        run: echo "repo_name=${GITHUB_REPOSITORY,,}" >> $GITHUB_OUTPUT
+
       - name: Build and push Docker image
         uses: docker/build-push-action@v5
         with:
           context: .
           push: true
-          tags: ghcr.io/${{ github.repository_owner | lower }}/${{ github.event.repository.name | lower }}:latest
+          tags: ghcr.io/${{ steps.slug.outputs.repo_name }}:latest
 
       - name: Copy docker-compose to EC2
         uses: appleboy/scp-action@v0.1.7
