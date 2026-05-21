@@ -1,10 +1,8 @@
 package id.ac.ui.cs.advprog.yomureadingservice.reading.service;
 
-import id.ac.ui.cs.advprog.yomureadingservice.integration.quiz.QuizCompletedEvent;
 import id.ac.ui.cs.advprog.yomureadingservice.reading.model.Category;
 import id.ac.ui.cs.advprog.yomureadingservice.reading.model.Option;
 import id.ac.ui.cs.advprog.yomureadingservice.reading.model.Question;
-import id.ac.ui.cs.advprog.yomureadingservice.reading.model.QuizAttempt;
 import id.ac.ui.cs.advprog.yomureadingservice.reading.model.Text;
 import id.ac.ui.cs.advprog.yomureadingservice.reading.repository.CategoryRepository;
 import id.ac.ui.cs.advprog.yomureadingservice.reading.repository.OptionRepository;
@@ -13,123 +11,64 @@ import id.ac.ui.cs.advprog.yomureadingservice.reading.repository.QuizAttemptRepo
 import id.ac.ui.cs.advprog.yomureadingservice.reading.repository.TextRepository;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
-import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.server.ResponseStatusException;
 
-import java.nio.charset.StandardCharsets;
-import java.time.LocalDateTime;
-import java.util.ArrayList;
 import java.util.List;
-import java.util.Map;
-import java.util.UUID;
 
 import static org.springframework.http.HttpStatus.NOT_FOUND;
 
 @Service
-public class TextService {
+public class TextService implements TextManagementService {
 
     private final TextRepository textRepository;
     private final CategoryRepository categoryRepository;
     private final QuizAttemptRepository quizAttemptRepository;
     private final QuestionRepository questionRepository;
     private final OptionRepository optionRepository;
-    private final ApplicationEventPublisher eventPublisher;
 
     public TextService(TextRepository textRepository,
                        CategoryRepository categoryRepository,
                        QuizAttemptRepository quizAttemptRepository,
                        QuestionRepository questionRepository,
-                       OptionRepository optionRepository,
-                       ApplicationEventPublisher eventPublisher){
+                       OptionRepository optionRepository){
         this.textRepository = textRepository;
         this.categoryRepository = categoryRepository;
         this.quizAttemptRepository = quizAttemptRepository;
         this.questionRepository = questionRepository;
         this.optionRepository = optionRepository;
-        this.eventPublisher = eventPublisher;
     }
 
+    @Override
     public List<Text> getAllTexts(){
         return textRepository.findByPublishedTrue();
     }
 
+    @Override
     public Page<Text> getAllTexts(int page, int size){
         return textRepository.findByPublishedTrue(PageRequest.of(page, size));
     }
 
+    @Override
     public Text getTextById(Long id){
         return textRepository.findById(id).orElseThrow();
     }
 
+    @Override
     public Text getPublishedTextById(Long id) {
         return textRepository.findByIdAndPublishedTrue(id)
                 .orElseThrow(() -> new ResponseStatusException(NOT_FOUND, "Text tidak ditemukan"));
     }
 
+    @Override
     public Text createText(String title, String content, Long categoryId, String userId){
         Category category = categoryRepository.findById(categoryId).orElseThrow();
         Text text = new Text(title, content, category, userId);
         return textRepository.save(text);
     }
 
-    public boolean hasUserAttemptedQuiz(String userId, Long textId) {
-        return quizAttemptRepository.existsByUserIdAndTextId(userId, textId);
-    }
-
-    public QuizAttempt getQuizResult(String userId, Long textId) {
-        return quizAttemptRepository.findByUserIdAndTextId(userId, textId).orElse(null);
-    }
-
-    public QuizAttempt submitQuiz(Long textId, String userId, Map<String, String> formData) {
-        if (hasUserAttemptedQuiz(userId, textId)) {
-            throw new IllegalStateException("User has already attempted this quiz.");
-        }
-
-        Text text = getPublishedTextById(textId);
-        List<Question> questions = questionRepository.findByTextId(textId);
-        
-        int totalQuestions = questions.size();
-        if (totalQuestions == 0) {
-            throw new IllegalStateException("No questions available for this text.");
-        }
-
-        int correctAnswers = 0;
-
-        for (Question question : questions) {
-            String answerOptionIdStr = formData.get("question_" + question.getId());
-            if (answerOptionIdStr != null) {
-                try {
-                    Long optionId = Long.parseLong(answerOptionIdStr);
-                    Option selectedOption = optionRepository.findById(optionId).orElse(null);
-                    if (selectedOption != null && selectedOption.isCorrect()) {
-                        correctAnswers++;
-                    }
-                } catch (NumberFormatException ignored) {
-                }
-            }
-        }
-
-        double accuracy = (double) correctAnswers / totalQuestions;
-        double score = accuracy * 100;
-
-        QuizAttempt attempt = new QuizAttempt(text, userId, score, accuracy);
-        quizAttemptRepository.save(attempt);
-
-        QuizCompletedEvent event = new QuizCompletedEvent(
-                UUID.randomUUID(),
-                UUID.fromString(userId),
-                textId,
-                score,
-                accuracy,
-                LocalDateTime.ofInstant(attempt.getTimestamp(), java.time.ZoneOffset.UTC)
-        );
-        eventPublisher.publishEvent(event);
-
-        return attempt;
-    }
-    
+    @Override
     @Transactional
     public void deleteText(Long textId) {
         quizAttemptRepository.deleteByTextId(textId);
@@ -137,26 +76,8 @@ public class TextService {
         questionRepository.deleteByTextId(textId);
         textRepository.deleteById(textId);
     }
-    
-    public id.ac.ui.cs.advprog.yomureadingservice.reading.dto.UserReadingStatResponse getUserReadingStats(String userId) {
-        List<QuizAttempt> attempts = quizAttemptRepository.findByUserId(userId);
-        int totalCompleted = attempts.size();
-        
-        if (totalCompleted == 0) {
-            return new id.ac.ui.cs.advprog.yomureadingservice.reading.dto.UserReadingStatResponse(0, 0.0, 0.0);
-        }
-        
-        double totalAccuracy = 0;
-        double totalScore = 0;
-        for (QuizAttempt attempt : attempts) {
-            totalAccuracy += attempt.getAccuracy();
-            totalScore += attempt.getScore();
-        }
-        
-        double averageAccuracy = totalAccuracy / totalCompleted;
-        return new id.ac.ui.cs.advprog.yomureadingservice.reading.dto.UserReadingStatResponse(totalCompleted, averageAccuracy, totalScore);
-    }
 
+    @Override
     @Transactional
     public void publishText(Long textId) {
         Text text = getTextById(textId);
@@ -184,21 +105,12 @@ public class TextService {
         textRepository.save(text);
     }
     
+    @Override
     public List<Text> getAllTextsAdmin(Long categoryId, Boolean published) {
         List<Text> texts = textRepository.findAll();
         return texts.stream()
                 .filter(t -> categoryId == null || t.getCategory().getId().equals(categoryId))
                 .filter(t -> published == null || t.isPublished() == published)
                 .toList();
-    }
-    
-    public List<QuizAttempt> getUserQuizHistory(String userId) {
-        List<QuizAttempt> attempts = new ArrayList<>(quizAttemptRepository.findByUserId(userId));
-        attempts.sort((a, b) -> b.getTimestamp().compareTo(a.getTimestamp())); // Sort descending
-        return attempts;
-    }
-
-    private UUID mapTextIdToEventId(Long textId) {
-        return UUID.nameUUIDFromBytes(("reading-text:" + textId).getBytes(StandardCharsets.UTF_8));
     }
 }

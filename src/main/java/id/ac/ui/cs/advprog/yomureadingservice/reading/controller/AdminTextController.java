@@ -6,7 +6,7 @@ import id.ac.ui.cs.advprog.yomureadingservice.client.ReadingServiceNotFoundExcep
 import id.ac.ui.cs.advprog.yomureadingservice.client.dto.TextDto;
 import id.ac.ui.cs.advprog.yomureadingservice.client.dto.TextPageDto;
 import id.ac.ui.cs.advprog.yomureadingservice.reading.dto.CreateTextRequest;
-import id.ac.ui.cs.advprog.yomureadingservice.reading.service.TextService;
+import id.ac.ui.cs.advprog.yomureadingservice.reading.service.TextManagementService;
 
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -21,11 +21,11 @@ import java.util.Map;
 public class AdminTextController {
 
     private final ReadingServiceClient readingServiceClient;
-    private final TextService textService;
+    private final TextManagementService textManagementService;
 
-    public AdminTextController(ReadingServiceClient readingServiceClient, TextService textService) {
+    public AdminTextController(ReadingServiceClient readingServiceClient, TextManagementService textManagementService) {
         this.readingServiceClient = readingServiceClient;
-        this.textService = textService;
+        this.textManagementService = textManagementService;
     }
 
     @PostMapping
@@ -55,7 +55,7 @@ public class AdminTextController {
     @DeleteMapping("/{id}")
     public ResponseEntity<?> deleteText(@PathVariable Long id) {
         try {
-            textService.deleteText(id);
+            textManagementService.deleteText(id);
             return ResponseEntity.ok(Map.of("message", "Teks dengan ID " + id + " berhasil dihapus"));
         } catch (ResponseStatusException e) {
             return ResponseEntity.status(e.getStatusCode()).body(Map.of("error", e.getReason()));
