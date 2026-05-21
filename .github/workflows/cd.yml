@@ -41,8 +41,3 @@ jobs:
           context: .
           push: true
           tags: ghcr.io/${{ steps.slug.outputs.repo_name }}:latest
-
-      - name: Deploy to Railway
-        run: npx @railway/cli@latest up --service yomu-reading-service --detach
-        env:
-          RAILWAY_TOKEN: ${{ secrets.RAILWAY_TOKEN }}
