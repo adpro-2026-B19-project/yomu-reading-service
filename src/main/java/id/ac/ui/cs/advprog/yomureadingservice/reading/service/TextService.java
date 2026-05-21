@@ -186,7 +186,6 @@ public class TextService {
     
     public List<Text> getAllTextsAdmin(Long categoryId, Boolean published) {
         List<Text> texts = textRepository.findAll();
-        // Since we don't have specification criteria yet, let's just stream filter
         return texts.stream()
                 .filter(t -> categoryId == null || t.getCategory().getId().equals(categoryId))
                 .filter(t -> published == null || t.isPublished() == published)
